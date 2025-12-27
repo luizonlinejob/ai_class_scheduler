@@ -126,7 +126,7 @@ if 'username' not in st.session_state: st.session_state.username = None
 if not st.session_state.authenticated:
     col1, col2, col3 = st.columns([1,2,1])
     with col2:
-        st.markdown('<div class="header-style"><h2>🔒 AI Schedule Secure Login</h2></div>', unsafe_allow_html=True)
+        st.markdown('<div class="header-style"><h2>🔒 AI Scheduler Secure Login</h2></div>', unsafe_allow_html=True)
         t1, t2 = st.tabs(["Login", "Sign Up"])
         with t1:
             with st.form("log"):
@@ -459,7 +459,7 @@ with st.sidebar:
     if st.button("Clear Queue"): st.session_state.classes = []; st.rerun()
 
 # --- DASHBOARD ---
-st.markdown('<div class="header-style"><h1>📅 Stable AI Scheduler</h1></div>', unsafe_allow_html=True)
+st.markdown('<div class="header-style"><h1>📅 AI Scheduler Developed by: LUIS PURAL</h1></div>', unsafe_allow_html=True)
 c1,c2,c3,c4 = st.columns(4)
 c1.metric("Queue", len(st.session_state.classes))
 c2.metric("Rooms", len(st.session_state.rooms))
@@ -522,3 +522,4 @@ with col_r:
 
 
 st.markdown('<div class="custom-footer">System Stable | LRP 12|23|25</div>', unsafe_allow_html=True)
+
