@@ -126,7 +126,7 @@ if 'username' not in st.session_state: st.session_state.username = None
 if not st.session_state.authenticated:
     col1, col2, col3 = st.columns([1,2,1])
     with col2:
-        st.markdown('<div class="header-style"><h2>🔒 Secure Login</h2></div>', unsafe_allow_html=True)
+        st.markdown('<div class="header-style"><h2>🔒 AI Schedule Secure Login</h2></div>', unsafe_allow_html=True)
         t1, t2 = st.tabs(["Login", "Sign Up"])
         with t1:
             with st.form("log"):
@@ -519,5 +519,6 @@ with col_r:
             
             pdf_bytes = generate_pdf(df)
             d2.download_button("📄 Download PDF", pdf_bytes, "sched.pdf", "application/pdf", use_container_width=True)
+
 
 st.markdown('<div class="custom-footer">System Stable | LRP 12|23|25</div>', unsafe_allow_html=True)
