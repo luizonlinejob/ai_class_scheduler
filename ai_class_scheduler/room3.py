@@ -126,7 +126,7 @@ if 'username' not in st.session_state: st.session_state.username = None
 if not st.session_state.authenticated:
     col1, col2, col3 = st.columns([1,2,1])
     with col2:
-        st.markdown('<div class="header-style"><h2>🔒 Secure Login</h2><br><h5>(Note: Please sign up for account and PM the owner)</h5></br> </div>', unsafe_allow_html=True)
+        st.markdown('<div class="header-style"><h2>🔒 Secure Login</h2></div>', unsafe_allow_html=True)
         t1, t2 = st.tabs(["Login", "Sign Up"])
         with t1:
             with st.form("log"):
@@ -425,16 +425,15 @@ with st.sidebar:
                 st.session_state.rooms.append(nr); st.rerun()
         if st.button("Clear Rooms"): st.session_state.rooms = []; st.rerun()
 
-    # --- SECTION WITH NEW BUTTON ---
     with st.expander("👥 Sections"):
         for s in st.session_state.sections: st.caption(f"🎓 {s}")
         with st.form("sc_f"):
             if st.form_submit_button("Add") and (ns:=st.text_input("Name")):
                 st.session_state.sections.append(ns); st.rerun()
+        # --- NEW BUTTON ADDED HERE ---
         if st.button("Clear Sections"): 
             st.session_state.sections = []
             st.rerun()
-    # -----------------------------
 
     with st.expander("👨‍🏫 Teachers"):
         with st.form("tc_f"):
@@ -464,7 +463,7 @@ with st.sidebar:
     if st.button("Clear Queue"): st.session_state.classes = []; st.rerun()
 
 # --- DASHBOARD ---
-st.markdown('<div class="header-style"><h1>📅 AI Powered Class Scheduler Developed by: LUIS PURAL </h1></div>', unsafe_allow_html=True)
+st.markdown('<div class="header-style"><h1>📅 Stable AI Scheduler</h1></div>', unsafe_allow_html=True)
 c1,c2,c3,c4 = st.columns(4)
 c1.metric("Queue", len(st.session_state.classes))
 c2.metric("Rooms", len(st.session_state.rooms))
@@ -475,13 +474,20 @@ c4.metric("Saved Gens", len(gens))
 st.markdown("---")
 col_l, col_r = st.columns([1, 2.5])
 
+# --- UPDATED QUEUE DISPLAY ---
 with col_l:
     st.subheader("📋 Queue")
     if st.session_state.classes:
         for i,c in enumerate(st.session_state.classes):
             with st.container(border=True):
-                st.write(f"**{c['Subject']}**\n{c['Teacher']}")
-                if st.button("X", key=f"del_{i}"): st.session_state.classes.pop(i); st.rerun()
+                # Bold Subject Name
+                st.markdown(f"**{c['Subject']}**")
+                # Teacher and Section with icons
+                st.caption(f"👨‍🏫 {c['Teacher']} | 🎓 {c['Section']}")
+                
+                if st.button("❌ Remove", key=f"del_{i}"): 
+                    st.session_state.classes.pop(i)
+                    st.rerun()
         
         if st.button("🚀 AUTO-SCHEDULE", type="primary", use_container_width=True):
             with st.spinner("Solving..."):
@@ -525,5 +531,4 @@ with col_r:
             pdf_bytes = generate_pdf(df)
             d2.download_button("📄 Download PDF", pdf_bytes, "sched.pdf", "application/pdf", use_container_width=True)
 
-st.markdown('<div class="custom-footer">AI Powered Class Scheduler | LRP 12|23|25</div>', unsafe_allow_html=True)
-
+st.markdown('<div class="custom-footer">System Stable | LRP 12|23|25</div>', unsafe_allow_html=True)
