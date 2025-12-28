@@ -561,3 +561,4 @@ with col_r:
             d2.download_button("📄 Download PDF", pdf_bytes, "sched.pdf", "application/pdf", use_container_width=True)
 
 st.markdown('<div class="custom-footer">AI Powered Class Scheduler All Rights Reserved | LRP 12|23|25</div>', unsafe_allow_html=True)
+
