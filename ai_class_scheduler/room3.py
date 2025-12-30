@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-import sqlite3 # Changed from mysql.connector
+import sqlite3 
 from ortools.sat.python import cp_model
 from streamlit_calendar import calendar
 from datetime import datetime, timedelta
@@ -39,7 +39,7 @@ DB_FILE = 'school_db.db'
 
 def get_db_connection():
     conn = sqlite3.connect(DB_FILE)
-    conn.row_factory = sqlite3.Row  # Allows accessing columns by name like dictionary
+    conn.row_factory = sqlite3.Row
     return conn
 
 # ==========================================
@@ -50,7 +50,6 @@ def init_user_db():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        # SQLite uses INTEGER PRIMARY KEY AUTOINCREMENT
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -73,7 +72,6 @@ def register_user(username, password):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        # Use ? instead of %s for SQLite
         cursor.execute("INSERT INTO users (username, password, role, status) VALUES (?, ?, 'user', 'pending')", (username, password))
         conn.commit()
         conn.close()
@@ -114,14 +112,34 @@ def approve_user(user_id):
         return True
     except: return False
 
+def delete_user_db(user_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        conn.commit()
+        conn.close()
+        return True
+    except: return False
+
 init_user_db()
+
+# ==========================================
+#        🔐 SESSION PERSISTENCE (AUTO-LOGIN)
+# ==========================================
+# Check URL params BEFORE initializing defaults to prevent logout on refresh
+if "logged_user" in st.query_params and "logged_role" in st.query_params:
+    st.session_state.authenticated = True
+    st.session_state.username = st.query_params["logged_user"]
+    st.session_state.user_role = st.query_params["logged_role"]
+
+if 'authenticated' not in st.session_state: st.session_state.authenticated = False
+if 'user_role' not in st.session_state: st.session_state.user_role = None
+if 'username' not in st.session_state: st.session_state.username = None
 
 # ==========================================
 #        🔐 LOGIN SCREEN
 # ==========================================
-if 'authenticated' not in st.session_state: st.session_state.authenticated = False
-if 'user_role' not in st.session_state: st.session_state.user_role = None
-if 'username' not in st.session_state: st.session_state.username = None
 
 if not st.session_state.authenticated:
     col1, col2, col3 = st.columns([1,2,1])
@@ -138,6 +156,11 @@ if not st.session_state.authenticated:
                         st.session_state.authenticated = True
                         st.session_state.user_role = d['role']
                         st.session_state.username = d['username']
+                        
+                        # --- SAVE TO URL FOR PERSISTENCE ---
+                        st.query_params["logged_user"] = d['username']
+                        st.query_params["logged_role"] = d['role']
+                        
                         st.rerun()
                     else: st.error(m)
         with t2:
@@ -145,13 +168,16 @@ if not st.session_state.authenticated:
                 nu = st.text_input("New User")
                 np = st.text_input("New Pass", type="password")
                 if st.form_submit_button("Sign Up"):
-                    ok, m = register_user(nu, np)
-                    if ok: st.success(m)
-                    else: st.error(m)
+                    if not nu.strip() or not np.strip():
+                        st.warning("⚠️ Please enter both a Username and a Password.")
+                    else:
+                        ok, m = register_user(nu, np)
+                        if ok: st.success(m)
+                        else: st.error(m)
     st.stop()
 
 # ==========================================
-#      🚀 MAIN APP (SQLITE VERSION)
+#      🚀 MAIN APP 
 # ==========================================
 
 DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
@@ -221,7 +247,7 @@ def generate_pdf(dataframe):
         pdf.cell(30, 10, str(row['Room']), 1, 1, 'C')
     return pdf.output(dest='S').encode('latin-1', 'ignore')
 
-# --- DATABASE & LOADERS (SQLITE ADAPTED) ---
+# --- DATABASE & LOADERS ---
 def save_db(sched):
     try:
         conn = get_db_connection()
@@ -233,7 +259,6 @@ def save_db(sched):
         
         c.execute("SELECT MAX(generation_id) FROM generated_schedule")
         r = c.fetchone()
-        # Handle None result from fetchone
         current_max = r[0] if r and r[0] is not None else 0
         nxt = current_max + 1
         
@@ -272,7 +297,6 @@ def load_gen(gid):
         conn.close()
         res = []
         for r in rows:
-            # Need to map row content since row_factory gives dict-like access, but indices also work
             st_str = r['time_slot'].split(' - ')[0]
             try: 
                 idx = TIMESLOTS.index(st_str)
@@ -370,6 +394,7 @@ with st.sidebar:
     st.write(f"👤 **{st.session_state.username}**")
     if st.button("🚪 Logout"):
         st.session_state.authenticated = False
+        st.query_params.clear() # CLEAR URL PARAMS ON LOGOUT
         st.rerun()
     st.divider()
 
@@ -377,22 +402,31 @@ with st.sidebar:
     if st.session_state.user_role == 'admin':
         st.markdown("### 👑 Admin Panel")
         
-        # 1. USER APPROVAL
+        # 1. USER APPROVAL (UPDATED)
         with st.expander("🔔 User Approvals", expanded=False):
             pend = get_pending_users()
             if pend:
                 for u in pend:
-                    c1, c2 = st.columns([3,1])
-                    c1.write(u['username'])
-                    if c2.button("✅", key=f"ok_{u['id']}"):
-                        approve_user(u['id']); st.rerun()
+                    c1, c2, c3 = st.columns([2, 1, 1])
+                    c1.write(f"{u['username']}")
+                    
+                    if c2.button("✅", key=f"acc_{u['id']}", help="Accept User"):
+                        approve_user(u['id'])
+                        st.success(f"Approved {u['username']}")
+                        time.sleep(0.5)
+                        st.rerun()
+                    
+                    if c3.button("❌", key=f"del_usr_{u['id']}", help="Delete User"):
+                        delete_user_db(u['id'])
+                        st.error(f"Deleted {u['username']}")
+                        time.sleep(0.5)
+                        st.rerun()
             else: st.caption("No pending users.")
             
-        # 2. MANAGE SCHEDULES (LOAD & DELETE) - ONLY VISIBLE TO ADMIN
+        # 2. MANAGE SCHEDULES
         with st.expander("🗄️ Database History", expanded=True):
             all_gens = get_gens()
             if all_gens:
-                # Load Form
                 with st.form("load_history_form"):
                     g_opts = {g[0]: f"Gen {g[0]} ({datetime.strptime(g[1], '%Y-%m-%d %H:%M:%S').strftime('%m-%d %H:%M') if isinstance(g[1], str) else g[1].strftime('%m-%d %H:%M')})" for g in all_gens}
                     sel = st.selectbox("Load Version", list(g_opts.keys()), format_func=lambda x: g_opts[x])
@@ -404,7 +438,6 @@ with st.sidebar:
                             st.rerun()
                 
                 st.markdown("---")
-                # Delete Buttons
                 st.caption("Delete Old Records:")
                 for g in all_gens:
                     c1, c2 = st.columns([3,1])
@@ -430,6 +463,9 @@ with st.sidebar:
         with st.form("sc_f"):
             if st.form_submit_button("Add") and (ns:=st.text_input("Name")):
                 st.session_state.sections.append(ns); st.rerun()
+        if st.button("Clear Sections"): 
+            st.session_state.sections = []
+            st.rerun()
 
     with st.expander("👨‍🏫 Teachers"):
         with st.form("tc_f"):
@@ -459,7 +495,7 @@ with st.sidebar:
     if st.button("Clear Queue"): st.session_state.classes = []; st.rerun()
 
 # --- DASHBOARD ---
-st.markdown('<div class="header-style"><h1>📅 Stable AI Scheduler</h1></div>', unsafe_allow_html=True)
+st.markdown('<div class="header-style"><h1>📅 AI Powered Class Scheduler Developed by: LUIS PURAL</h1></div>', unsafe_allow_html=True)
 c1,c2,c3,c4 = st.columns(4)
 c1.metric("Queue", len(st.session_state.classes))
 c2.metric("Rooms", len(st.session_state.rooms))
@@ -475,8 +511,11 @@ with col_l:
     if st.session_state.classes:
         for i,c in enumerate(st.session_state.classes):
             with st.container(border=True):
-                st.write(f"**{c['Subject']}**\n{c['Teacher']}")
-                if st.button("X", key=f"del_{i}"): st.session_state.classes.pop(i); st.rerun()
+                st.markdown(f"**{c['Subject']}**")
+                st.caption(f"👨‍🏫 {c['Teacher']} | 🎓 {c['Section']}")
+                if st.button("❌ Remove", key=f"queue_del_{i}"): 
+                    st.session_state.classes.pop(i)
+                    st.rerun()
         
         if st.button("🚀 AUTO-SCHEDULE", type="primary", use_container_width=True):
             with st.spinner("Solving..."):
@@ -520,4 +559,4 @@ with col_r:
             pdf_bytes = generate_pdf(df)
             d2.download_button("📄 Download PDF", pdf_bytes, "sched.pdf", "application/pdf", use_container_width=True)
 
-st.markdown('<div class="custom-footer">System Stable | LRP 12|23|25</div>', unsafe_allow_html=True)
+st.markdown('<div class="custom-footer">AI Powered Class Scheduler All Rights Reserved | LRP 12|23|25</div>', unsafe_allow_html=True)
