@@ -180,7 +180,7 @@ if not st.session_state.authenticated:
 #      🚀 MAIN APP 
 # ==========================================
 
-DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday","Sunday"]
 TIMESLOTS = []
 TIME_OBJECTS = [] 
 current = datetime(2024, 1, 1, 7, 30)
